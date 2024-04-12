@@ -254,7 +254,7 @@ def update_games_from_scraper():
         try:
             result = app(package_name, country="us", lang="en")
         except Exception as e:
-            print(f"Skipping game with packageName: {package_name} due to error: {e}")
+            print(f"Skipping game with packageName {package_name} due to error: {e}")
             continue
 
         if game_data["banner"].startswith("https://play-lh.googleusercontent.com"):
