@@ -244,13 +244,13 @@ def update_games_from_scraper():
 
         if game_data["banner"].startswith("https://play-lh.googleusercontent.com"):
             game_data["banner"] = result["headerImage"]
-        game_data["displayName"] = result["title"]
-        game_data["displayName"] = (
-            game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
-        )
-        game_data["searchName"] = re.sub(
-            r"[^a-z0-9]", "", unidecode.unidecode(game_data["displayName"].lower())
-        )
+        # game_data["displayName"] = result["title"]
+        # game_data["displayName"] = (
+        #     game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
+        # )
+        # game_data["searchName"] = re.sub(
+        #     r"[^a-z0-9]", "", unidecode.unidecode(game_data["displayName"].lower())
+        # )
         game_data["icon"] = result["icon"]
         game_data["description"] = result["summary"]
         game_data["price"] = float(result["price"])
@@ -276,7 +276,7 @@ def delete_games():
             db.collection("games").document(doc.id).delete()
             print(f"Deleted game with packageName: {package_name}")
 
-    print("Game deleted successfully")
+    print("Games deleted successfully")
 
 
 # ---------------- ?. SHOW ALL GAMES ----------------
@@ -294,14 +294,35 @@ def list_games():
 def search_game():
     search_term = input("Enter the search term: ")
 
-    result = search(
+    search_results = search(
         search_term,
         lang="en",
         country="us",
         n_hits=3,
     )
 
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    apps_details = []
+
+    for search_result in search_results:
+        appId = search_result["appId"]
+        app_details = app(appId, lang="en", country="us")
+
+        processed_details = {
+            "appId": app_details.get("appId"),
+            "icon": app_details.get("icon"),
+            "title": app_details.get("title"),
+            "genre": app_details.get("genre"),
+            "price": app_details.get("price"),
+            "developer": app_details.get("developer"),
+            "categories": [
+                category["name"] for category in app_details.get("categories", [])
+            ],
+        }
+
+        apps_details.append(processed_details)
+
+    print(f"Search results:")
+    print(json.dumps(apps_details, indent=2, ensure_ascii=False))
 
 
 # ---------------- MAIN ----------------
