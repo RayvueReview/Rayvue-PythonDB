@@ -1,2 +1,4 @@
-firebase_admin
-google_play_scraper
+firebase-admin
+google-cloud-firestore
+google-play-scraper
+unidecode
