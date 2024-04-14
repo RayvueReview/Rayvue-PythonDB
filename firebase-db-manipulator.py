@@ -1,6 +1,8 @@
+import os
 import re
 import ssl
 import json
+import random
 import unidecode
 import firebase_admin
 from google.cloud.firestore_v1 import DocumentSnapshot
@@ -14,22 +16,6 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 
-"""
----------------- TAGS ----------------
-1 -> subscription service
-2 -> micro-transactions
-3 -> battle pass
-4 -> loot boxes
-5 -> pay to win
-6 -> malicious practices
-7 -> concerning TOS
-8 -> fake engagement
-9 -> not as advertised
-10 -> immoral developers
-11 -> scam
-"""
-
-
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -40,10 +26,25 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 # ---------------- 1. ADD A GAME FROM INPUT ----------------
-def add_game_from_input():
+def add_game_from_input(package_name):
+    # generate random id
+    max_uint = 2**32 - 1
+    games_ids_file_path = "games-ids.json"
+    random_id = random.randint(0, max_uint)
+
+    if not os.path.exists(games_ids_file_path):
+        with open(games_ids_file_path, "w") as file:
+            json.dump({}, file)
+
+    with open(games_ids_file_path, "r") as file:
+        used_ids = json.load(file)
+
+    while str(random_id) in used_ids:
+        random_id = random.randint(0, max_uint)
+
+    # insert data
     game_data = {}
-    game_data["id"] = db.collection("games").document().id
-    game_data["packageName"] = input("Enter the package name: ")
+    game_data["randomId"] = random_id
     game_data["displayName"] = input("Enter the game name: ")
     game_data["displayName"] = (
         game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
@@ -56,6 +57,7 @@ def add_game_from_input():
     game_data["banner"] = input("Enter the banner URL: ")
     game_data["description"] = input("Enter the description: ")
     game_data["price"] = float(input("Enter the price: "))
+    game_data["dateAdded"] = firestore.SERVER_TIMESTAMP
     game_data["genre"] = float(input("Enter the genre: "))
 
     categories_input = input("Enter the categories (comma-separated, without space): ")
@@ -70,20 +72,52 @@ def add_game_from_input():
         [int(tag) for tag in tags_input.split(",")] if tags_input else []
     )
 
-    game_data["dateAdded"] = firestore.SERVER_TIMESTAMP
+    # send data to Firebase
+    used_ids[str(random_id)] = {
+        "packageName": package_name,
+        "genre": game_data["genre"],
+    }
 
-    db.collection("games").document(game_data["id"]).set(game_data)
+    if game_data["genre"].lower() == "role playing":
+        genre_doc_name = "rolePlaying"
+    else:
+        genre_doc_name = game_data["genre"].lower()
+
+    with open(games_ids_file_path, "w") as file:
+        json.dump(used_ids, file, indent=2)
+
+    db.collection("randomGamesIds").document(genre_doc_name).update(
+        {"idsList": firestore.ArrayUnion([random_id])}
+    )
+    db.collection("randomGamesIds").document("all").update(
+        {"idsList": firestore.ArrayUnion([random_id])}
+    )
+    db.collection("games").document(package_name).set(game_data)
     print("Game added successfully")
 
 
 # ---------------- 2. ADD A GAME FROM SCRAPER AND INPUT ----------------
-def add_game_from_scraper():
+def add_game_from_scraper(package_name):
+    # generate random id
+    max_uint = 2**32 - 1
+    games_ids_file_path = "games-ids.json"
+    random_id = random.randint(0, max_uint)
+
+    if not os.path.exists(games_ids_file_path):
+        with open(games_ids_file_path, "w") as file:
+            json.dump({}, file)
+
+    with open(games_ids_file_path, "r") as file:
+        used_ids = json.load(file)
+
+    while str(random_id) in used_ids:
+        random_id = random.randint(0, max_uint)
+
+    # insert data
+    result = app(package_name, country="us", lang="en")
+
     game_data = {}
-    game_data["id"] = db.collection("games").document().id
-    game_data["packageName"] = input("Enter the package name: ")
-
-    result = app(game_data["packageName"], country="us", lang="en")
-
+    game_data["randomId"] = random_id
     game_data["displayName"] = result["title"]
     game_data["displayName"] = (
         game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
@@ -101,6 +135,7 @@ def add_game_from_scraper():
 
     game_data["description"] = result["summary"]
     game_data["price"] = float(result["price"])
+    game_data["dateAdded"] = firestore.SERVER_TIMESTAMP
     game_data["genre"] = result["genre"]
     game_data["categories"] = [category["name"] for category in result["categories"]]
 
@@ -109,17 +144,33 @@ def add_game_from_scraper():
         [int(tag) for tag in tags_input.split(",")] if tags_input else []
     )
 
-    game_data["dateAdded"] = firestore.SERVER_TIMESTAMP
+    # send data to Firebase
+    used_ids[str(random_id)] = {
+        "packageName": package_name,
+        "genre": game_data["genre"],
+    }
 
-    db.collection("games").document(game_data["id"]).set(game_data)
+    if game_data["genre"].lower() == "role playing":
+        genre_doc_name = "rolePlaying"
+    else:
+        genre_doc_name = game_data["genre"].lower()
+
+    with open(games_ids_file_path, "w") as file:
+        json.dump(used_ids, file, indent=2)
+
+    db.collection("randomGamesIds").document(genre_doc_name).update(
+        {"idsList": firestore.ArrayUnion([random_id])}
+    )
+    db.collection("randomGamesIds").document("all").update(
+        {"idsList": firestore.ArrayUnion([random_id])}
+    )
+    db.collection("games").document(package_name).set(game_data)
     print("Game added successfully")
 
 
 # ---------------- 3. UPDATE A GAME FROM INPUT ----------------
 def update_game_from_input(package_name):
-    doc_ref = (
-        db.collection("games").where("packageName", "==", package_name).limit(1).get()
-    )
+    doc_ref = db.collection("games").document(package_name).get()
 
     if not doc_ref:
         print(f"No game found with packageName: {package_name}")
@@ -129,9 +180,6 @@ def update_game_from_input(package_name):
 
     print(f"Current data for game with packageName: {package_name}")
     print(json.dumps(game_data, indent=2, ensure_ascii=False, cls=CustomJSONEncoder))
-
-    if input("Would you like to update the packageName? (y/n): ").lower() == "y":
-        game_data["packageName"] = input("Enter the new packageName: ")
 
     if input("Would you like to update the name? (y/n): ").lower() == "y":
         game_data["displayName"] = input("Enter the new name: ")
@@ -177,15 +225,13 @@ def update_game_from_input(package_name):
             ).split(",")
         ]
 
-    db.collection("games").document(doc_ref[0].id).update(game_data)
+    db.collection("games").document(package_name).update(game_data)
     print("Game updated successfully")
 
 
 # ---------------- 4. UPDATE A GAME FROM SCRAPER AND INPUT ----------------
 def update_game_from_scraper(package_name):
-    doc_ref = (
-        db.collection("games").where("packageName", "==", package_name).limit(1).get()
-    )
+    doc_ref = db.collection("games").document(package_name).get()
 
     if not doc_ref:
         print(f"No game found with packageName: {package_name}")
@@ -239,7 +285,7 @@ def update_game_from_scraper(package_name):
             ).split(",")
         ]
 
-    db.collection("games").document(doc_ref[0].id).update(game_data)
+    db.collection("games").document(package_name).update(game_data)
     print("Game updated successfully")
 
 
@@ -249,7 +295,7 @@ def update_games_from_scraper():
 
     for doc in docs:
         game_data = doc.to_dict()
-        package_name = game_data["packageName"]
+        package_name = doc.id
 
         try:
             result = app(package_name, country="us", lang="en")
@@ -269,7 +315,7 @@ def update_games_from_scraper():
             category["name"] for category in result["categories"]
         ]
 
-        db.collection("games").document(doc.id).update(game_data)
+        db.collection("games").document(package_name).update(game_data)
         print(f"Updated game with packageName: {package_name}")
 
     print("Games updated successfully")
@@ -280,14 +326,43 @@ def delete_games():
     package_names = input(
         "Enter the package names to delete (comma-separated, without space): "
     ).split(",")
+    games_ids_file_path = "games-ids.json"
+
+    if not os.path.exists(games_ids_file_path):
+        print("The file with all the games' IDs doesn't exist. What happened to it?")
+        return
+
+    with open(games_ids_file_path, "r") as file:
+        used_ids = json.load(file)
 
     for package_name in package_names:
         package_name = package_name.strip()
-        docs = db.collection("games").where("packageName", "==", package_name).stream()
+        random_id, genre = None, None
 
-        for doc in docs:
-            db.collection("games").document(doc.id).delete()
+        for id, details in list(used_ids.items()):
+            if details["packageName"] == package_name:
+                random_id = id
+                genre = details["genre"]
+                del used_ids[id]
+                break
+
+        if random_id is not None and genre is not None:
+            if genre.lower() == "role playing":
+                genre_doc_name = "rolePlaying"
+            else:
+                genre_doc_name = genre.lower()
+
+            db.collection("randomGamesIds").document(genre_doc_name).update(
+                {"idsList": firestore.ArrayRemove([int(random_id)])}
+            )
+            db.collection("randomGamesIds").document("all").update(
+                {"idsList": firestore.ArrayRemove([int(random_id)])}
+            )
+            db.collection("games").document(package_name).delete()
             print(f"Deleted game with packageName: {package_name}")
+
+    with open(games_ids_file_path, "w") as file:
+        json.dump(used_ids, file, indent=2)
 
     print("Games deleted successfully")
 
@@ -313,6 +388,7 @@ def search_game():
             "appId": app_details.get("appId"),
             "icon": app_details.get("icon"),
             "title": app_details.get("title"),
+            "description": app_details.get("summary"),
             "genre": app_details.get("genre"),
             "price": app_details.get("price"),
             "developer": app_details.get("developer"),
@@ -327,13 +403,20 @@ def search_game():
     print(json.dumps(apps_details, indent=2, ensure_ascii=False))
 
 
+# ---------------- 8. SHOW TAGS MEANING ----------------
+def show_tags_meaning():
+    print(
+        "1: Subscription service\n2: Micro-transactions\n3: Battle pass\n4: Loot boxes\n5: Pay to win\n6: Malicious practices\n7: Concerning TOS\n8: Fake engagement\n9: Not as advertised\n10: Immoral developers\n11: Scam"
+    )
+
+
 # ---------------- ?. SHOW ALL GAMES ----------------
 def list_games():
     docs = db.collection("games").stream()
 
     for doc in docs:
         game = doc.to_dict()
-        print(f"Name: {game['name']}, PackageName: {game['packageName']}")
+        print(f"Name: {game['name']}, Package Name: {doc.id}")
 
     print("Games listed successfully")
 
@@ -349,14 +432,17 @@ def main():
         print("5. Update all games using scraper (costly)")
         print("6. Delete certain games")
         print("7. Search for a game")
+        print("8. Show tags meaning")
         # print("?. List all games (super costly)")
-        print("8. Exit")
+        print("9. Exit")
 
         option = input("Select an option: ")
         if option == "1":
-            add_game_from_input()
+            package_name = input("Enter the package name: ")
+            add_game_from_input(package_name)
         elif option == "2":
-            add_game_from_scraper()
+            package_name = input("Enter the package name: ")
+            add_game_from_scraper(package_name)
         elif option == "3":
             package_name = input("Enter the package name: ")
             update_game_from_input(package_name)
@@ -369,9 +455,11 @@ def main():
             delete_games()
         elif option == "7":
             search_game()
+        elif option == "8":
+            show_tags_meaning()
         # elif option == "?":
         #     list_games()
-        elif option == "8":
+        elif option == "9":
             break
         else:
             print("Invalid option. Please try again.")
