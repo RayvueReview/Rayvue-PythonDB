@@ -1,0 +1,33 @@
+action: com.innerslot.spacemafia,com.tuokio.boomslingers,com.blitzteam.battleprime,com.activision.callofduty.warzone,com.activision.callofduty.shooter,jp.konami.epjCastlevania2
+
+adventure: com.miHoYo.GenshinImpact,com.nianticlabs.pokemongo,com.and.games505.TerrariaPaid,com.roblox.client,eu.bandainamcoent.verylittlenightmares,com.playdigious.littlenightmare,com.playdead.limbo.full
+
+all: com.innerslot.spacemafia,com.kakaogames.gdts,com.tuokio.boomslingers,com.blitzteam.battleprime,com.poncle.vampiresurvivors,com.activision.callofduty.warzone,com.activision.callofduty.shooter,com.netease.racerna,com.miHoYo.GenshinImpact,com.chess,com.matteljv.uno,com.popreach.dumbways,com.nival.wtlm,com.sofarsogood.incredibox,com.ubisoft.dance.JustDance,com.FireproofStudios.TheRoom,com.kiarygames.tinydoors,com.feralinteractive.gridas,com.Flanne.MinutesTillDawn.roguelike.shooting.fr.gp,com.coffeestainstudios.goatsimulator,nz.co.codepoint.minimetro,com.ea.gp.fifamobile,com.miniclip.eightballpool,com.ea.game.pvzfree_row,com.supercell.clashofclans,com.supercell.clashroyale,com.nytimes.crossword,com.pieyel.scrabble,com.nianticlabs.pokemongo,com.and.games505.TerrariaPaid,com.mojang.minecraftpe,com.roblox.client,eu.bandainamcoent.verylittlenightmares,com.playdigious.littlenightmare,com.playdead.limbo.full,com.nekki.vector,com.kiloo.subwaysurf,com.halfbrick.jetpackjoyride,com.halfbrick.jetpack.classic,com.scopely.monopolygo,com.marmalade.monopoly,com.hasbro.riskbigscreen,com.tbegames.and.dice_and_spells,com.sonypicturestelevision.jeopardy2,com.sporcle.geneva,jp.konami.epjCastlevania2
+
+arcade: com.poncle.vampiresurvivors,com.mojang.minecraftpe,com.nekki.vector,com.kiloo.subwaysurf,com.halfbrick.jetpackjoyride,com.halfbrick.jetpack.classic
+
+board: com.chess,com.scopely.monopolygo,com.marmalade.monopoly,com.hasbro.riskbigscreen,com.tbegames.and.dice_and_spells
+
+card: com.matteljv.uno
+
+casual: com.popreach.dumbways
+
+educational: com.nival.wtlm
+
+music: com.sofarsogood.incredibox,com.ubisoft.dance.JustDance
+
+puzzle: com.FireproofStudios.TheRoom,com.kiarygames.tinydoors
+
+racing: com.netease.racerna,com.feralinteractive.gridas
+
+role playing: com.kakaogames.gdts,com.Flanne.MinutesTillDawn.roguelike.shooting.fr.gp
+
+simulation: com.coffeestainstudios.goatsimulator,nz.co.codepoint.minimetro
+
+sports: com.ea.gp.fifamobile,com.miniclip.eightballpool
+
+strategy: com.ea.game.pvzfree_row,com.supercell.clashofclans,com.supercell.clashroyale
+
+trivia: com.sonypicturestelevision.jeopardy2,com.sporcle.geneva
+
+word: com.nytimes.crossword,com.pieyel.scrabble

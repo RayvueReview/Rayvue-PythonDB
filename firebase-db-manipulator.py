@@ -2,13 +2,13 @@ import os
 import re
 import ssl
 import json
-import random
 import unidecode
 import firebase_admin
 from google.cloud.firestore_v1 import DocumentSnapshot
 from firebase_admin import credentials, firestore
 from google_play_scraper import app, search
 from datetime import datetime
+
 
 ssl._create_default_https_context = ssl._create_unverified_context
 cred = credentials.Certificate("rayvue-app-firebase-adminsdk-e1e3m-d4c0bef170.json")
@@ -27,24 +27,9 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 # ---------------- 1. ADD A GAME FROM INPUT ----------------
 def add_game_from_input(package_name):
-    # generate random id
-    max_uint = 2**32 - 1
-    games_ids_file_path = "games-ids.json"
-    random_id = random.randint(0, max_uint)
-
-    if not os.path.exists(games_ids_file_path):
-        with open(games_ids_file_path, "w") as file:
-            json.dump({}, file)
-
-    with open(games_ids_file_path, "r") as file:
-        used_ids = json.load(file)
-
-    while str(random_id) in used_ids:
-        random_id = random.randint(0, max_uint)
-
     # insert data
     game_data = {}
-    game_data["randomId"] = random_id
+    game_data["id"] = package_name
     game_data["displayName"] = input("Enter the game name: ")
     game_data["displayName"] = (
         game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
@@ -73,24 +58,16 @@ def add_game_from_input(package_name):
     )
 
     # send data to Firebase
-    used_ids[str(random_id)] = {
-        "packageName": package_name,
-        "genre": game_data["genre"],
-    }
-
     if game_data["genre"].lower() == "role playing":
         genre_doc_name = "rolePlaying"
     else:
         genre_doc_name = game_data["genre"].lower()
 
-    with open(games_ids_file_path, "w") as file:
-        json.dump(used_ids, file, indent=2)
-
-    db.collection("randomGamesIds").document(genre_doc_name).update(
-        {"idsList": firestore.ArrayUnion([random_id])}
+    db.collection("gameIds").document(genre_doc_name).update(
+        {"idsList": firestore.ArrayUnion([package_name])}
     )
-    db.collection("randomGamesIds").document("all").update(
-        {"idsList": firestore.ArrayUnion([random_id])}
+    db.collection("gameIds").document("all").update(
+        {"idsList": firestore.ArrayUnion([package_name])}
     )
     db.collection("games").document(package_name).set(game_data)
     print("Game added successfully")
@@ -98,26 +75,11 @@ def add_game_from_input(package_name):
 
 # ---------------- 2. ADD A GAME FROM SCRAPER AND INPUT ----------------
 def add_game_from_scraper(package_name):
-    # generate random id
-    max_uint = 2**32 - 1
-    games_ids_file_path = "games-ids.json"
-    random_id = random.randint(0, max_uint)
-
-    if not os.path.exists(games_ids_file_path):
-        with open(games_ids_file_path, "w") as file:
-            json.dump({}, file)
-
-    with open(games_ids_file_path, "r") as file:
-        used_ids = json.load(file)
-
-    while str(random_id) in used_ids:
-        random_id = random.randint(0, max_uint)
-
     # insert data
     result = app(package_name, country="us", lang="en")
 
     game_data = {}
-    game_data["randomId"] = random_id
+    game_data["id"] = package_name
     game_data["displayName"] = result["title"]
     game_data["displayName"] = (
         game_data["displayName"].replace("™", "").replace("©", "").replace("®", "")
@@ -145,24 +107,16 @@ def add_game_from_scraper(package_name):
     )
 
     # send data to Firebase
-    used_ids[str(random_id)] = {
-        "packageName": package_name,
-        "genre": game_data["genre"],
-    }
-
     if game_data["genre"].lower() == "role playing":
         genre_doc_name = "rolePlaying"
     else:
         genre_doc_name = game_data["genre"].lower()
 
-    with open(games_ids_file_path, "w") as file:
-        json.dump(used_ids, file, indent=2)
-
-    db.collection("randomGamesIds").document(genre_doc_name).update(
-        {"idsList": firestore.ArrayUnion([random_id])}
+    db.collection("gameIds").document(genre_doc_name).update(
+        {"idsList": firestore.ArrayUnion([package_name])}
     )
-    db.collection("randomGamesIds").document("all").update(
-        {"idsList": firestore.ArrayUnion([random_id])}
+    db.collection("gameIds").document("all").update(
+        {"idsList": firestore.ArrayUnion([package_name])}
     )
     db.collection("games").document(package_name).set(game_data)
     print("Game added successfully")
@@ -172,11 +126,11 @@ def add_game_from_scraper(package_name):
 def update_game_from_input(package_name):
     doc_ref = db.collection("games").document(package_name).get()
 
-    if not doc_ref:
+    if not doc_ref.exists:
         print(f"No game found with packageName: {package_name}")
         return
 
-    game_data = doc_ref[0].to_dict()
+    game_data = doc_ref.to_dict()
 
     print(f"Current data for game with packageName: {package_name}")
     print(json.dumps(game_data, indent=2, ensure_ascii=False, cls=CustomJSONEncoder))
@@ -233,11 +187,11 @@ def update_game_from_input(package_name):
 def update_game_from_scraper(package_name):
     doc_ref = db.collection("games").document(package_name).get()
 
-    if not doc_ref:
+    if not doc_ref.exists:
         print(f"No game found with packageName: {package_name}")
         return
 
-    game_data = doc_ref[0].to_dict()
+    game_data = doc_ref.to_dict()
     result = app(package_name, country="us", lang="en")
 
     print(f"Current data for game with packageName: {package_name}")
@@ -289,7 +243,7 @@ def update_game_from_scraper(package_name):
     print("Game updated successfully")
 
 
-# ---------------- 5. UPDATE ALL GAMES FROM SCRAPER ----------------
+# ---------------- 5. UPDATE ALL GAMES FROM SCRAPER (COSTLY) ----------------
 def update_games_from_scraper():
     docs = db.collection("games").stream()
 
@@ -302,6 +256,8 @@ def update_games_from_scraper():
         except Exception as e:
             print(f"Skipping game with packageName {package_name} due to error: {e}")
             continue
+
+        game_data["id"] = package_name
 
         if game_data["banner"].startswith("https://play-lh.googleusercontent.com"):
             game_data["banner"] = result["headerImage"]
@@ -326,43 +282,25 @@ def delete_games():
     package_names = input(
         "Enter the package names to delete (comma-separated, without space): "
     ).split(",")
-    games_ids_file_path = "games-ids.json"
-
-    if not os.path.exists(games_ids_file_path):
-        print("The file with all the games' IDs doesn't exist. What happened to it?")
-        return
-
-    with open(games_ids_file_path, "r") as file:
-        used_ids = json.load(file)
 
     for package_name in package_names:
         package_name = package_name.strip()
-        random_id, genre = None, None
+        genre = None
 
-        for id, details in list(used_ids.items()):
-            if details["packageName"] == package_name:
-                random_id = id
-                genre = details["genre"]
-                del used_ids[id]
-                break
-
-        if random_id is not None and genre is not None:
+        if genre is not None:
             if genre.lower() == "role playing":
                 genre_doc_name = "rolePlaying"
             else:
                 genre_doc_name = genre.lower()
 
-            db.collection("randomGamesIds").document(genre_doc_name).update(
-                {"idsList": firestore.ArrayRemove([int(random_id)])}
+            db.collection("gameIds").document(genre_doc_name).update(
+                {"idsList": firestore.ArrayRemove([package_name])}
             )
-            db.collection("randomGamesIds").document("all").update(
-                {"idsList": firestore.ArrayRemove([int(random_id)])}
+            db.collection("gameIds").document("all").update(
+                {"idsList": firestore.ArrayRemove([package_name])}
             )
             db.collection("games").document(package_name).delete()
             print(f"Deleted game with packageName: {package_name}")
-
-    with open(games_ids_file_path, "w") as file:
-        json.dump(used_ids, file, indent=2)
 
     print("Games deleted successfully")
 
@@ -410,15 +348,43 @@ def show_tags_meaning():
     )
 
 
-# ---------------- ?. SHOW ALL GAMES ----------------
-def list_games():
-    docs = db.collection("games").stream()
+# ---------------- 9. CREATE GENRE DOCUMENTS ----------------
+def create_genre_documents():
+    collection_name = "gameIds"
+    doc_names = (
+        "action,adventure,arcade,board,card,casual,educational,music,puzzle,racing,role playing,simulation,sports,strategy,trivia,word"
+    ).split(",")
+    array_name = "idsList"
+    collection_ref = db.collection(collection_name)
 
-    for doc in docs:
-        game = doc.to_dict()
-        print(f"Name: {game['name']}, Package Name: {doc.id}")
+    for doc_name in doc_names:
+        doc_name = doc_name.strip()
+        doc_ref = collection_ref.document(doc_name)
+        doc_ref.set({array_name: [""]})
+        print(f"Document '{doc_name}' created in '{collection_name}' collection.")
 
-    print("Games listed successfully")
+    print("Genre documents created successfully")
+
+
+# ---------------- 10. POPULATE GENRE DOCUMENTS ----------------
+def populate_genre_documents():
+    collection_name = "gameIds"
+    array_name = "idsList"
+    collection_ref = db.collection(collection_name)
+
+    for doc in collection_ref.stream():
+        doc_ref = collection_ref.document(doc.id)
+        array_values = input(
+            f"Enter the array values to put in '{doc.id}' (comma-separated, without space): "
+        )
+        values_list = array_values.split(",")
+
+        if values_list[0] != "":
+            doc_ref.update({array_name: values_list})
+            print(f"Document '{doc.id}' updated with '{array_name}' = {values_list}")
+        else:
+            print(f"Document '{doc.id}' not updated")
+            continue
 
 
 # ---------------- MAIN ----------------
@@ -433,8 +399,9 @@ def main():
         print("6. Delete certain games")
         print("7. Search for a game")
         print("8. Show tags meaning")
-        # print("?. List all games (super costly)")
-        print("9. Exit")
+        print("9. Create genre documents (old)")
+        print("10. Populate genre documents (old)")
+        print("11. Exit")
 
         option = input("Select an option: ")
         if option == "1":
@@ -457,9 +424,11 @@ def main():
             search_game()
         elif option == "8":
             show_tags_meaning()
-        # elif option == "?":
-        #     list_games()
         elif option == "9":
+            create_genre_documents()
+        elif option == "10":
+            populate_genre_documents()
+        elif option == "11":
             break
         else:
             print("Invalid option. Please try again.")
